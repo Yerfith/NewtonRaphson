@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Método de Newton-Raphson | Análisis Numérico</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="js/script"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <header>
+            <div class="header-content">
+                <div class="logo">
+                    <i class="fas fa-calculator"></i>
+                    <span>Análisis Numérico</span>
+                </div>
+            </div>
+        </header>
+        
+        <main>
+            <h1 class="page-title">Método de Newton-Raphson</h1>
+            <p class="page-subtitle">Una técnica iterativa para encontrar raíces de funciones reales</p>
+            
+            <div class="card animate-fade-in">
+                <div class="card-header">
+                    <h2>Configuración del Método</h2>
+                    <p>Ingresa los parámetros para el cálculo</p>
+                    <div class="card-header-icon">
+                        <i class="fas fa-cogs"></i>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="error-message" id="errorMessage">
+                        <i class="fas fa-exclamation-circle"></i>
+                        <span id="errorText"></span>
+                    </div>
+
+                    <div class="info-message">
+                        <i class="fas fa-info-circle"></i>
+                        Ingresa una función matemática y los parámetros necesarios para calcular su raíz utilizando el método de Newton-Raphson. Puedes usar constantes como 'pi' y 'e' en tu función.
+                    </div>
+
+                    <div class="input-grid">
+                        <div class="input-group">
+                            <label for="function">Función f(x):</label>
+                            <input type="text" id="function" placeholder="Ejemplo: x^3 - pi*x - 1">
+                            <i class="fas fa-function input-icon"></i>
+                        </div>
+                        
+                        <div class="input-group">
+                            <label for="x0">Valor inicial (X0):</label>
+                            <input type="number" id="x0" placeholder="Valor inicial" step="any">
+                            <i class="fas fa-arrow-right input-icon"></i>
+                        </div>
+                        
+                        <div class="input-group">
+                            <label for="error">Tolerancia de error:</label>
+                            <input type="text" id="error" placeholder="Ejemplo: 1e-6">
+                            <i class="fas fa-percentage input-icon"></i>
+                        </div>
+                        
+                        <div class="input-group">
+                            <label for="precision">Precisión decimal:</label>
+                            <input type="number" id="precision" placeholder="Número de decimales" min="1" max="15">
+                            <i class="fas fa-ruler-combined input-icon"></i>
+                        </div>
+
+                        <div class="input-group">
+                            <label for="maxIterations">Máximo de iteraciones:</label>
+                            <input type="number" id="maxIterations" placeholder="Máximo de iteraciones" value="100" min="1">
+                            <i class="fas fa-redo input-icon"></i>
+                        </div>
+                    </div>
+                    
+                    <div class="btn-group">
+                        <button id="calculate" class="btn btn-primary">
+                            <i class="fas fa-calculator"></i> Calcular
+                        </button>
+                        <button id="exportPDF" class="btn btn-success">
+                            <i class="fas fa-file-pdf"></i> Exportar a PDF
+                        </button>
+                        <button id="showExamples" class="btn btn-info">
+                            <i class="fas fa-lightbulb"></i> Ver Ejemplos
+                        </button>
+                        <button id="addIntegrante" class="btn btn-warning">
+                            <i class="fas fa-user-plus"></i> Agregar Integrante
+                        </button>
+                    </div>
+                    
+                    <div class="function-display" id="derivative"></div>
+                </div>
+            </div>
+            
+            <div class="results-section animate-fade-in" id="resultsSection">
+                <h2><i class="fas fa-table"></i> Tabla de Resultados</h2>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Iteración</th>
+                                <th>xn</th>
+                                <th>f(xn)</th>
+                                <th>f'(xn)</th>
+                                <th>xn+1</th>
+                                <th>Error Aproximado</th>
+                            </tr>
+                        </thead>
+                        <tbody id="resultsBody">
+                            <!-- Los resultados se mostrarán aquí -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="step-details animate-fade-in" id="stepDetails">
+                <h2><i class="fas fa-code-branch"></i> Desarrollo de Iteraciones</h2>
+                <div class="steps-container" id="iterationSteps">
+                    <!-- Los pasos detallados se mostrarán aquí -->
+                </div>
+            </div>
+
+            <!-- Mensaje de la raíz final -->
+            <div class="final-root" id="finalRootMessage">
+                <i class="fas fa-check-circle"></i>
+                <span id="finalRootText"></span>
+            </div>
+
+            <!-- Pasos de validación de la raíz -->
+            <div class="validation-steps" id="validationSteps">
+                <h3>Validación de la raíz</h3>
+                <p id="validationText"></p>
+            </div>
+
+            <!-- Lista de integrantes -->
+            <div class="integrante-list" id="integranteList">
+                <h3>Integrantes</h3>
+                <ul id="integrantes">
+                    <!-- Los nombres de los integrantes se mostrarán aquí -->
+                </ul>
+            </div>
+        </main>
+        
+        <footer>
+            <div class="footer-content">
+                <div class="footer-text">
+                    &copy; 2025 Análisis Numérico - Todos los derechos reservados
+                </div>
+            </div>
+        </footer>
+        
+        <div class="loader-container" id="loaderContainer">
+            <div class="loader"></div>
+        </div>
+
+        <!-- Modal de ejemplos -->
+        <div class="modal" id="examplesModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3><i class="fas fa-lightbulb"></i> Ejemplos de Funciones</h3>
+                    <button class="modal-close" id="closeModal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <p>Selecciona uno de estos ejemplos para probar el método de Newton-Raphson:</p>
+                    
+                    <div class="example-card">
+                        <h4>Ecuación Cúbica</h4>
+                        <p>Función: <span class="example-function">x^3 - pi*x - 1</span></p>
+                        <p>Valor inicial recomendado: 1.5</p>
+                        <button class="use-example" data-function="x^3 - pi*x - 1" data-x0="1.5">Usar este ejemplo</button>
+                    </div>
+                    
+                    <div class="example-card">
+                        <h4>Función Trigonométrica</h4>
+                        <p>Función: <span class="example-function">cos(x) - x</span></p>
+                        <p>Valor inicial recomendado: 0.8</p>
+                        <button class="use-example" data-function="cos(x) - x" data-x0="0.8">Usar este ejemplo</button>
+                    </div>
+                    
+                    <div class="example-card">
+                        <h4>Función Exponencial</h4>
+                        <p>Función: <span class="example-function">exp(-x) - x</span></p>
+                        <p>Valor inicial recomendado: 0.5</p>
+                        <button class="use-example" data-function="exp(-x) - x" data-x0="0.5">Usar este ejemplo</button>
+                    </div>
+                    
+                    <div class="example-card">
+                        <h4>Función Logarítmica</h4>
+                        <p>Función: <span class="example-function">x^2 - ln(x) - 3</span></p>
+                        <p>Valor inicial recomendado: 2</p>
+                        <button class="use-example" data-function="x^2 - ln(x) - 3" data-x0="2">Usar este ejemplo</button>
+                    </div>
+                    
+                    <div class="example-card">
+                        <h4>Polinomio de Grado Superior</h4>
+                        <p>Función: <span class="example-function">x^5 - 3*x^4 + 5</span></p>
+                        <p>Valor inicial recomendado: 2</p>
+                        <button class="use-example" data-function="x^5 - 3*x^4 + 5" data-x0="2">Usar este ejemplo</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal para agregar integrantes -->
+        <div class="modal" id="integranteModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3><i class="fas fa-user-plus"></i> Agregar Integrante</h3>
+                    <button class="modal-close" id="closeIntegranteModal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="input-group">
+                        <label for="integranteNombre">Nombre del integrante:</label>
+                        <input type="text" id="integranteNombre" placeholder="Ejemplo: Juan Pérez">
+                    </div>
+                    <button id="addIntegranteBtn" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Agregar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

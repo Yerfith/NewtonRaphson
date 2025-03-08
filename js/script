@@ -1,0 +1,588 @@
+document.addEventListener('DOMContentLoaded', function() {
+    const calculateBtn = document.getElementById('calculate');
+    const exportPDFBtn = document.getElementById('exportPDF');
+    const showExamplesBtn = document.getElementById('showExamples');
+    const addIntegranteBtn = document.getElementById('addIntegrante');
+    const closeModalBtn = document.getElementById('closeModal');
+    const closeIntegranteModalBtn = document.getElementById('closeIntegranteModal');
+    const examplesModal = document.getElementById('examplesModal');
+    const integranteModal = document.getElementById('integranteModal');
+    const addIntegranteModalBtn = document.getElementById('addIntegranteBtn');
+    const integranteNombreInput = document.getElementById('integranteNombre');
+    const integrantesList = document.getElementById('integrantes');
+    const functionInput = document.getElementById('function');
+    const x0Input = document.getElementById('x0');
+    const errorInput = document.getElementById('error');
+    const precisionInput = document.getElementById('precision');
+    const maxIterationsInput = document.getElementById('maxIterations');
+    const derivativeDisplay = document.getElementById('derivative');
+    const resultsBody = document.getElementById('resultsBody');
+    const iterationSteps = document.getElementById('iterationSteps');
+    const loaderContainer = document.getElementById('loaderContainer');
+    const errorMessage = document.getElementById('errorMessage');
+    const errorText = document.getElementById('errorText');
+    const resultsSection = document.getElementById('resultsSection');
+    const stepDetails = document.getElementById('stepDetails');
+    const finalRootMessage = document.getElementById('finalRootMessage');
+    const finalRootText = document.getElementById('finalRootText');
+    const validationSteps = document.getElementById('validationSteps');
+    const validationText = document.getElementById('validationText');
+            
+    // Almacenar los resultados para usarlos en la exportación a PDF
+    let calculationResults = [];
+    let detailedSteps = [];
+    let validationProcess = '';
+    let integrantes = [];
+            
+    function showLoader() {
+         loaderContainer.style.display = 'flex';
+    }
+            
+    function hideLoader() {
+        loaderContainer.style.display = 'none';
+    }
+
+    function showError(message) {
+        errorText.textContent = message;
+        errorMessage.style.display = 'block';
+        setTimeout(() => {
+        errorMessage.style.display = 'none';
+       }, 5000);
+    }
+            
+    // Función para parsear y evaluar expresiones matemáticas
+    function parseAndEvaluate(expr, x) {
+   // Reemplazar 'pi' y 'e' por sus valores correspondientes
+        expr = expr.replace(/\bpi\b/g, 'PI');
+        expr = expr.replace(/\be\b/g, 'E');
+                
+         try {
+             const node = math.parse(expr);
+            const compiled = node.compile();
+        return compiled.evaluate({x: x, PI: Math.PI, E: Math.E});
+            } catch (error) {
+                throw new Error('Error al evaluar la función: ' + error.message);
+            }
+    }
+
+   // Función para calcular la derivada
+    function getDerivative(functionStr) {
+           try {
+    // Reemplazar 'pi' y 'e' por sus valores correspondientes
+        functionStr = functionStr.replace(/\bpi\b/g, 'PI');
+        functionStr = functionStr.replace(/\be\b/g, 'E');
+                    
+        const node = math.parse(functionStr);
+        const derivative = math.derivative(node, 'x');
+        return derivative.toString().replace(/PI/g, 'pi').replace(/E/g, 'e');
+         } catch (error) {
+        console.error('Error al calcular la derivada:', error);
+            throw new Error('Error al calcular la derivada. Verifica la función ingresada.');
+            }
+    }
+
+    // Función para evaluar la función y su derivada
+    function evaluateFunction(functionStr, x) {
+        return parseAndEvaluate(functionStr, x);
+    }
+
+    function newtonRaphson(functionStr, derivativeStr, x0, tolerance, maxIterations, precision) {
+        let iterations = [];
+        let steps = [];
+        let x_prev = parseFloat(x0);
+        let error = 1;
+        let iteration = 0;
+                
+           while (error > tolerance && iteration < maxIterations) {
+                try {
+                    const fx = evaluateFunction(functionStr, x_prev);
+                    const dfx = evaluateFunction(derivativeStr, x_prev);
+                        
+                    if (Math.abs(dfx) < 1e-10) {
+                        throw new Error('La derivada es cercana a cero. El método puede no converger. Intenta con otro valor inicial.');
+                    }
+                        
+                    const x_next = x_prev - (fx / dfx);
+                    error = Math.abs((x_next - x_prev) / x_next)*100;
+                        
+                    iterations.push({
+                    iteration: iteration + 1,
+                    xn: x_prev,
+                    fx: fx,
+                    dfx: dfx,
+                    xn_next: x_next,
+                    error: error
+                });
+                        
+                steps.push({
+                iteration: iteration + 1,
+                xn: x_prev,
+                fx: fx,
+                dfx: dfx,
+                calculation: `${x_prev.toFixed(precision)} - (${fx.toFixed(precision)} / ${dfx.toFixed(precision)})`,
+                xn_next: x_next,
+                error: error
+                });
+                        
+                x_prev = x_next;
+                iteration++;
+                        
+    // Si el error es NaN o Infinity, detenemos el cálculo
+                if (isNaN(error) || !isFinite(error)) {
+                    throw new Error('El método diverge. Intenta con otro valor inicial.');
+                }
+           } catch (error) {
+                throw error;
+            }
+        }
+                
+                if (iteration >= maxIterations) {
+                    throw new Error(`El método no convergió después de ${maxIterations} iteraciones. Intenta con otro valor inicial o aumenta el número máximo de iteraciones.`);
+                }
+                
+                // Validar la raíz final reemplazándola en la función original
+                const finalFx = evaluateFunction(functionStr, x_prev);
+                const isRootValid = Math.abs(finalFx) < tolerance;
+
+                // Generar el proceso de validación paso a paso
+                validationProcess = `Validación de la raíz:\n`;
+                validationProcess += `1. Reemplazamos x = ${x_prev.toFixed(precision)} en la función original:\n`;
+                validationProcess += `   f(${x_prev.toFixed(precision)}) = ${functionStr}\n`;
+                validationProcess += `2. Calculamos f(${x_prev.toFixed(precision)}):\n`;
+                validationProcess += `   f(${x_prev.toFixed(precision)}) = ${finalFx.toFixed(precision)}\n`;
+                validationProcess += `3. Verificamos si |f(${x_prev.toFixed(precision)})| < ${tolerance}:\n`;
+                validationProcess += `   |${finalFx.toFixed(precision)}| < ${tolerance} → ${isRootValid ? 'Válido' : 'No válido'}`;
+
+                return { iterations, steps, finalRoot: x_prev, isRootValid, finalFx };
+            }
+
+            // Mostramos los resultados detalladamente 
+    function displayResults(results, steps, precision, finalRoot, isRootValid, finalFx) {
+                resultsBody.innerHTML = '';
+                results.forEach(result => {
+                    const row = document.createElement('tr');
+                    
+                    const iterationCell = document.createElement('td');
+                    iterationCell.textContent = result.iteration;
+                    row.appendChild(iterationCell);
+                    
+                    const xnCell = document.createElement('td');
+                    xnCell.textContent = result.xn.toFixed(precision);
+                    row.appendChild(xnCell);
+                    
+                    const fxCell = document.createElement('td');
+                    fxCell.textContent = result.fx.toFixed(precision);
+                    row.appendChild(fxCell);
+                    
+                    const dfxCell = document.createElement('td');
+                    dfxCell.textContent = result.dfx.toFixed(precision);
+                    row.appendChild(dfxCell);
+                    
+                    const xnNextCell = document.createElement('td');
+                    xnNextCell.textContent = result.xn_next.toFixed(precision);
+                    row.appendChild(xnNextCell);
+                    
+                    const errorCell = document.createElement('td');
+                    // Cambia toExponential por toFixed para mostrar el error en formato decimal
+                    errorCell.textContent = result.error.toFixed(precision);
+                    row.appendChild(errorCell);
+                    
+                    resultsBody.appendChild(row);
+                });
+                
+                iterationSteps.innerHTML = '';
+                steps.forEach(step => {
+                    const stepCard = document.createElement('div');
+                    stepCard.className = 'step-card';
+                    
+                    const stepHeader = document.createElement('div');
+                    stepHeader.className = 'step-header';
+                    stepHeader.innerHTML = `
+                        <span>Iteración</span>
+                        <span class="iteration-badge">${step.iteration}</span>
+                    `;
+                    stepCard.appendChild(stepHeader);
+                    
+                    const stepBody = document.createElement('div');
+                    stepBody.className = 'step-body';
+                    
+                    const stepInfo = document.createElement('div');
+                    stepInfo.className = 'step-info';
+                    stepInfo.innerHTML = `
+                        <p>
+                            <span class="label">Valor actual (xn):</span>
+                            <span class="value">${step.xn.toFixed(precision)}</span>
+                        </p>
+                        <p>
+                            <span class="label">f(xn):</span>
+                            <span class="value">${step.fx.toFixed(precision)}</span>
+                        </p>
+                        <p>
+                            <span class="label">f'(xn):</span>
+                            <span class="value">${step.dfx.toFixed(precision)}</span>
+                        </p>
+                    `;
+                    stepBody.appendChild(stepInfo);
+                    
+                    const stepFormula = document.createElement('div');
+                    stepFormula.className = 'step-formula';
+                    stepFormula.innerHTML = `
+                        <p class="formula-title">Cálculo de xn+1:</p>
+                        <p>xn+1 = xn - f(xn) / f'(xn)</p>
+                        <p>xn+1 = ${step.calculation}</p>
+                        <p>xn+1 = ${step.xn_next.toFixed(precision)}</p>
+                    `;
+                    stepBody.appendChild(stepFormula);
+                    
+                    const errorResult = document.createElement('div');
+                    errorResult.className = 'error-result';
+                    errorResult.innerHTML = `
+                        <span class="label">Error aproximado (ea):</span>
+                        <span class="value">${step.error.toFixed(precision)}</span>
+                    `;
+                    stepBody.appendChild(errorResult);
+                    
+                    stepCard.appendChild(stepBody);
+                    iterationSteps.appendChild(stepCard);
+                });
+                
+                // Mostrar las secciones de resultados
+                resultsSection.style.display = 'block';
+                stepDetails.style.display = 'block';
+
+                // Mostrar la raíz final y su validez
+                finalRootMessage.style.display = 'block';
+                if (isRootValid) {
+                    finalRootText.textContent = `Raíz válida encontrada: ${finalRoot.toFixed(precision)}. f(${finalRoot.toFixed(precision)}) = ${finalFx.toFixed(precision)}`;
+                } else {
+                    finalRootText.textContent = `Raíz no válida: ${finalRoot.toFixed(precision)}. f(${finalRoot.toFixed(precision)}) = ${finalFx.toFixed(precision)}`;
+                }
+
+                // Mostrar el proceso de validación
+                validationSteps.style.display = 'block';
+                validationText.textContent = validationProcess;
+            }
+            
+            // Exportamos los resultados en PDF
+    function exportToPDF() {
+    if (calculationResults.length === 0) {
+        showError('No hay resultados para exportar. Primero debes calcular los resultados.');
+        return;
+    }
+
+    showLoader();
+
+    setTimeout(() => {
+        try {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            doc.setFontSize(18);
+            doc.setTextColor(99, 102, 241);
+            doc.text('Método de Newton-Raphson', 105, 15, { align: 'center' });
+
+            doc.setDrawColor(99, 102, 241);
+            doc.setLineWidth(0.5);
+            doc.line(40, 20, 170, 20);
+
+            let yPosition = 30;
+
+            // Agregar la lista de integrantes al principio del PDF
+            doc.setFontSize(12);
+            doc.setTextColor(30, 41, 59);
+            doc.text('Integrantes', 14, yPosition);
+            yPosition += 10;
+
+            doc.setFontSize(10);
+            integrantes.forEach(integrante => {
+                if (yPosition > 280) {
+                    doc.addPage();
+                    yPosition = 20;
+                }
+                doc.text(`- ${integrante}`, 20, yPosition);
+                yPosition += 10;
+            });
+
+            // Agregar la información del cálculo
+            yPosition += 10; // Espacio adicional
+            doc.setFontSize(12);
+            doc.setTextColor(30, 41, 59);
+            doc.text('Información del Cálculo', 14, yPosition);
+            yPosition += 10;
+
+            doc.setFontSize(10);
+            doc.text(`Función: ${functionInput.value}`, 20, yPosition);
+            yPosition += 7;
+            doc.text(`Derivada: ${derivativeDisplay.textContent.replace('f\'(x) = ', '')}`, 20, yPosition);
+            yPosition += 7;
+            doc.text(`Valor inicial (x0): ${x0Input.value}`, 20, yPosition);
+            yPosition += 7;
+            doc.text(`Tolerancia: ${errorInput.value}`, 20, yPosition);
+            yPosition += 7;
+            doc.text(`Precisión: ${precisionInput.value} decimales`, 20, yPosition);
+            yPosition += 7;
+            doc.text(`Máximo de iteraciones: ${maxIterationsInput.value}`, 20, yPosition);
+            yPosition += 15;
+
+            // Agregar la tabla de resultados
+            doc.setFontSize(12);
+            doc.setTextColor(30, 41, 59);
+            doc.text('Tabla de Resultados', 14, yPosition);
+            yPosition += 10;
+
+            const tableColumns = [
+                { header: 'Iteración', dataKey: 'iteration' },
+                { header: 'xn', dataKey: 'xn' },
+                { header: 'f(xn)', dataKey: 'fx' },
+                { header: 'f\'(xn)', dataKey: 'dfx' },
+                { header: 'xn+1', dataKey: 'xn_next' },
+                { header: 'Error Aprox.', dataKey: 'error' }
+            ];
+
+            const precision = parseInt(precisionInput.value);
+
+            const tableRows = calculationResults.map(result => ({
+                iteration: result.iteration,
+                xn: result.xn.toFixed(precision),
+                fx: result.fx.toFixed(precision),
+                dfx: result.dfx.toFixed(precision),
+                xn_next: result.xn_next.toFixed(precision),
+                error: result.error.toFixed(precision)
+            }));
+
+            doc.autoTable({
+                startY: yPosition,
+                head: [tableColumns.map(col => col.header)],
+                body: tableRows.map(row => [
+                    row.iteration,
+                    row.xn,
+                    row.fx,
+                    row.dfx,
+                    row.xn_next,
+                    row.error
+                ]),
+                theme: 'grid',
+                headStyles: {
+                    fillColor: [30, 41, 59],
+                    textColor: [255, 255, 255],
+                    fontStyle: 'bold'
+                },
+                alternateRowStyles: {
+                    fillColor: [241, 245, 249]
+                }
+            });
+
+            yPosition = doc.lastAutoTable.finalY + 15;
+
+            // Agregar el desarrollo detallado de iteraciones
+            doc.setFontSize(12);
+            doc.setTextColor(30, 41, 59);
+            doc.text('Desarrollo Detallado de Iteraciones', 14, yPosition);
+            yPosition += 10;
+
+            detailedSteps.forEach((step, index) => {
+                if (yPosition > 250) {
+                    doc.addPage();
+                    yPosition = 20;
+                }
+
+                doc.setFillColor(99, 102, 241);
+                doc.setDrawColor(99, 102, 241);
+                doc.setTextColor(255, 255, 255);
+                doc.roundedRect(14, yPosition, 182, 8, 1, 1, 'F');
+                doc.text(`Iteración ${step.iteration}`, 18, yPosition + 5.5);
+                yPosition += 12;
+
+                doc.setTextColor(30, 41, 59);
+                doc.setFontSize(10);
+                doc.text(`Valor actual (xn): ${step.xn.toFixed(precision)}`, 20, yPosition);
+                yPosition += 7;
+
+                doc.text(`f(xn): ${step.fx.toFixed(precision)}`, 20, yPosition);
+                yPosition += 7;
+
+                doc.text(`f'(xn): ${step.dfx.toFixed(precision)}`, 20, yPosition);
+                yPosition += 10;
+
+                doc.setFillColor(241, 245, 249);
+                doc.roundedRect(20, yPosition - 5, 170, 25, 1, 1, 'F');
+
+                doc.setFontSize(10);
+                doc.setTextColor(30, 41, 59);
+                doc.text('Cálculo de xn+1:', 25, yPosition);
+                yPosition += 7;
+
+                doc.text(`xn+1 = xn - f(xn) / f'(xn)`, 30, yPosition);
+                yPosition += 7;
+
+                doc.text(`xn+1 = ${step.calculation}`, 30, yPosition);
+                yPosition += 7;
+
+                doc.text(`xn+1 = ${step.xn_next.toFixed(precision)}`, 30, yPosition);
+                yPosition += 12;
+
+                doc.text(`Error aproximado (ea): ${step.error.toFixed(precision)}`, 20, yPosition);
+                yPosition += 20;
+            });
+
+            // Agregar la validación de la raíz al final del PDF
+            if (yPosition > 250) {
+                doc.addPage();
+                yPosition = 20;
+            }
+
+            doc.setFontSize(12);
+            doc.setTextColor(30, 41, 59);
+            doc.text('Validación de la Raíz', 14, yPosition);
+            yPosition += 10;
+
+            doc.setFontSize(10);
+            const validationLines = validationProcess.split('\n');
+            validationLines.forEach(line => {
+                if (yPosition > 280) {
+                    doc.addPage();
+                    yPosition = 20;
+                }
+                doc.text(line, 20, yPosition);
+                yPosition += 10;
+            });
+
+            const totalPages = doc.internal.getNumberOfPages();
+            for (let i = 1; i <= totalPages; i++) {
+                doc.setPage(i);
+                doc.setFontSize(8);
+                doc.setTextColor(100, 100, 100);
+                doc.text(`Página ${i} de ${totalPages}`, 105, 290, { align: 'center' });
+                doc.text(`Generado el ${new Date().toLocaleString()}`, 105, 295, { align: 'center' });
+            }
+
+            doc.save('Newton-Raphson.pdf');
+        } catch (error) {
+            console.error('Error al generar el PDF:', error);
+            showError('Error al generar el PDF: ' + error.message);
+        } finally {
+            hideLoader();
+        }
+    }, 500);
+}
+            
+            calculateBtn.addEventListener('click', function() {
+                const functionStr = functionInput.value.trim();
+                const x0 = x0Input.value.trim();
+                const tolerance = errorInput.value.trim();
+                const maxIterations = parseInt(maxIterationsInput.value);
+                
+                // Validaciones
+                if (!functionStr) {
+                    showError('Debes ingresar una función.');
+                    return;
+                }
+                
+                if (!x0) {
+                    showError('Debes ingresar un valor inicial (X0).');
+                    return;
+                }
+                
+                if (!tolerance) {
+                    showError('Debes ingresar una tolerancia de error.');
+                    return;
+                }
+                
+                showLoader();
+                
+                setTimeout(() => {
+                    try {
+                        const precision = parseInt(precisionInput.value);
+                        
+                        // Calcular la derivada
+                        const derivativeStr = getDerivative(functionStr);
+                        derivativeDisplay.textContent = `f'(x) = ${derivativeStr}`;
+                        
+                        // Ejecutar el método de Newton-Raphson
+                        const { iterations, steps, finalRoot, isRootValid, finalFx } = newtonRaphson(
+                            functionStr, 
+                            derivativeStr, 
+                            parseFloat(x0), 
+                            parseFloat(tolerance), 
+                            maxIterations, 
+                            precision
+                        );
+                        
+                        calculationResults = iterations;
+                        detailedSteps = steps;
+                        
+                        displayResults(iterations, steps, precision, finalRoot, isRootValid, finalFx);
+                        
+                    } catch (error) {
+                        showError(error.message);
+                        derivativeDisplay.textContent = '';
+                        resultsSection.style.display = 'none';
+                        stepDetails.style.display = 'none';
+                        finalRootMessage.style.display = 'none';
+                        validationSteps.style.display = 'none';
+                    } finally {
+                        hideLoader();
+                    }
+                }, 500);
+            });
+            
+            exportPDFBtn.addEventListener('click', exportToPDF);
+            
+            showExamplesBtn.addEventListener('click', function() {
+                examplesModal.style.display = 'flex';
+            });
+            
+            closeModalBtn.addEventListener('click', function() {
+                examplesModal.style.display = 'none';
+            });
+            
+            addIntegranteBtn.addEventListener('click', function() {
+                integranteModal.style.display = 'flex';
+            });
+            
+            closeIntegranteModalBtn.addEventListener('click', function() {
+                integranteModal.style.display = 'none';
+            });
+            
+            addIntegranteModalBtn.addEventListener('click', function() {
+                const nombre = integranteNombreInput.value.trim();
+                if (nombre) {
+                    integrantes.push(nombre);
+                    integranteNombreInput.value = '';
+                    updateIntegrantesList();
+                }
+            });
+            
+            window.addEventListener('click', function(event) {
+                if (event.target === examplesModal) {
+                    examplesModal.style.display = 'none';
+                }
+                if (event.target === integranteModal) {
+                    integranteModal.style.display = 'none';
+                }
+            });
+            
+            function updateIntegrantesList() {
+                integrantesList.innerHTML = '';
+                integrantes.forEach(integrante => {
+                    const li = document.createElement('li');
+                    li.textContent = integrante;
+                    integrantesList.appendChild(li);
+                });
+            }
+            
+            document.querySelectorAll('.use-example').forEach(button => {
+                button.addEventListener('click', function() {
+                    const func = this.getAttribute('data-function');
+                    const x0 = this.getAttribute('data-x0');
+                    
+                    functionInput.value = func;
+                    x0Input.value = x0;
+                    
+                    examplesModal.style.display = 'none';
+                    
+                    // Calcular automáticamente
+                    calculateBtn.click();
+                });
+            });
+        });
